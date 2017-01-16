@@ -25,8 +25,8 @@ public struct ProgressRing {
     }
 }
 
-public class ProgressRingLayer: CAShapeLayer {
-    var completion: (Void -> Void)?
+public class ProgressRingLayer: CAShapeLayer, CALayerDelegate, CAAnimationDelegate {
+    var completion: ((Void) -> Void)?
 
     public var progress: CGFloat? {
         get {
@@ -43,9 +43,9 @@ public class ProgressRingLayer: CAShapeLayer {
 
         let bezier = UIBezierPath(arcCenter: center, radius: radius, startAngle: CGFloat(-M_PI_2), endAngle: CGFloat(M_PI * 2 - M_PI_2), clockwise: true)
         delegate = self
-        path = bezier.CGPath
-        fillColor = UIColor.clearColor().CGColor
-        strokeColor = color.CGColor
+        path = bezier.cgPath
+        fillColor = UIColor.clear.cgColor
+        strokeColor = color.cgColor
         lineWidth = width
         lineCap = kCALineCapRound
         strokeStart = 0
@@ -56,11 +56,11 @@ public class ProgressRingLayer: CAShapeLayer {
         super.init(coder: aDecoder)
     }
 
-    override init(layer: AnyObject) {
+    override init(layer: Any) {
         super.init(layer: layer)
     }
 
-    public func setProgress(progress: CGFloat, duration: CGFloat, completion: (Void -> Void)? = nil) {
+    public func setProgress(progress: CGFloat, duration: CGFloat, completion: ((Void) -> Void)? = nil) {
         let animation = CABasicAnimation(keyPath: "strokeEnd")
         animation.fromValue = strokeEnd
         animation.toValue = progress
@@ -69,10 +69,10 @@ public class ProgressRingLayer: CAShapeLayer {
         animation.timingFunction = CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseOut)
 
         strokeEnd = progress
-        addAnimation(animation, forKey: "strokeEnd")
+        add(animation, forKey: "strokeEnd")
     }
 
-    public override func animationDidStop(anim: CAAnimation, finished flag: Bool) {
+    public func animationDidStop(anim: CAAnimation, finished flag: Bool) {
         if flag {
             completion?()
         }
@@ -90,27 +90,28 @@ public final class CircleLayer: ProgressRingLayer {
     }
 }
 
-enum ConcentricProgressRingViewError: ErrorType {
+enum ConcentricProgressRingViewError: Error {
     case InvalidParameters
 }
 
-public final class ConcentricProgressRingView: UIView, SequenceType {
+public final class ConcentricProgressRingView: UIView, IteratorProtocol, Sequence {
     public var arcs: [ProgressRingLayer] = []
     var circles: [CircleLayer] = []
+    public typealias Element = ProgressRingLayer
 
-    @available(*, unavailable, message="Progress rings without a color, width, or progress set (such as those provided) can't be used with this initializer. Please use the other initializer that accepts default values.")
+    @available(*, unavailable, message: "Progress rings without a color, width, or progress set (such as those provided) can't be used with this initializer. Please use the other initializer that accepts default values.")
     public init?(center: CGPoint, radius: CGFloat, margin: CGFloat, rings: [ProgressRing?]) {
         return nil
     }
 
-    public convenience init(center: CGPoint, radius: CGFloat, margin: CGFloat, rings theRings: [ProgressRing?], defaultColor: UIColor? = UIColor.whiteColor(), defaultBackgroundColor: UIColor = UIColor.clearColor(), defaultWidth: CGFloat?) throws {
+    public convenience init(center: CGPoint, radius: CGFloat, margin: CGFloat, rings theRings: [ProgressRing?], defaultColor: UIColor? = UIColor.white, defaultBackgroundColor: UIColor = UIColor.clear, defaultWidth: CGFloat?) throws {
         var rings: [ProgressRing] = []
 
         for ring in theRings {
             guard var ring = ring else {
                 continue
             }
-
+            
             guard let color = ring.color ?? defaultColor,
                 let width = ring.width ?? defaultWidth else {
                     throw ConcentricProgressRingViewError.InvalidParameters
@@ -128,8 +129,8 @@ public final class ConcentricProgressRingView: UIView, SequenceType {
     }
 
     public init(center: CGPoint, radius: CGFloat, margin: CGFloat, rings: [ProgressRing]) {
-        let frame = CGRectMake(center.x - radius, center.y - radius, radius * 2, radius * 2)
-        let theCenter = CGPointMake(radius, radius)
+        let frame = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+        let theCenter = CGPoint(x: radius, y: radius)
 
         super.init(frame: frame)
 
@@ -161,7 +162,17 @@ public final class ConcentricProgressRingView: UIView, SequenceType {
         return arcs[index]
     }
 
-    public func generate() -> IndexingGenerator<[ProgressRingLayer]> {
-        return arcs.generate()
+    public func generate() -> IndexingIterator<[ProgressRingLayer]> {
+        return arcs.makeIterator()
+    }
+    
+    var arcCount = 0
+    public func next() -> ProgressRingLayer? {
+//        if arcs[arcCount] != nil {
+//            return arcs[arcCount]
+//        } else {
+//            return arcs[0]
+//        }
+        return arcs[0]
     }
 }
